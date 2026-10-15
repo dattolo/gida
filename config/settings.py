@@ -100,6 +100,9 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            # Wait for locks instead of failing, and take the write lock up front
+            # to avoid "database is locked" on concurrent writes.
+            'OPTIONS': {'timeout': 20, 'transaction_mode': 'IMMEDIATE'},
         }
     }
 
