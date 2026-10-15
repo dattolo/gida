@@ -37,3 +37,8 @@ class ItemSerializer(serializers.ModelSerializer):
 class VenditaSerializer(serializers.Serializer):
     vendita_dt = serializers.DateTimeField()
     prezzo_vendita = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
+
+
+class ImportSerializer(serializers.Serializer):
+    items = ItemSerializer(many=True, max_length=5000)
+    replace = serializers.BooleanField(default=False)
