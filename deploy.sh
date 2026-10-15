@@ -7,5 +7,5 @@ source ~/.virtualenvs/gida/bin/activate
 pip install --no-cache-dir -q -r requirements.txt
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput -v0
-touch /var/www/gida_eu_pythonanywhere_com_wsgi.py
+touch /var/www/gida_*pythonanywhere_com_wsgi.py
 echo "Deploy OK"
