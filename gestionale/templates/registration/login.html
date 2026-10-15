@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accedi · Gestionale</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+<div class="min-h-screen flex items-center justify-center px-4">
+	<form method="post" action="{% url 'login' %}" class="bg-white border border-slate-200 rounded-2xl p-8 w-full max-w-sm space-y-4">
+		{% csrf_token %}
+		<h1 class="text-xl font-semibold">Acquisti e vendite</h1>
+		<p class="text-sm text-slate-500">Accedi per continuare</p>
+		{% if form.errors %}
+		<p class="text-sm text-red-600">Nome utente o password non corretti.</p>
+		{% endif %}
+		<label class="block text-sm text-slate-600">Nome utente
+			<input type="text" name="username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+		</label>
+		<label class="block text-sm text-slate-600">Password
+			<input type="password" name="password" autocomplete="current-password" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+		</label>
+		<input type="hidden" name="next" value="{{ next }}">
+		<button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium">Accedi</button>
+	</form>
+</div>
+</body>
+</html>

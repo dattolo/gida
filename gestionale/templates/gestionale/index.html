@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestionale acquisti e vendite</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+	<header class="flex flex-wrap items-center justify-between gap-3 mb-6">
+		<div>
+			<h1 class="text-2xl font-semibold">Acquisti e vendite</h1>
+			<p id="where" class="text-sm text-slate-500">Nessun database aperto</p>
+		</div>
+		<div class="flex flex-wrap items-center gap-2">
+			<button id="btnImp" class="hidden border border-slate-300 bg-white hover:bg-slate-50 rounded-lg px-3 py-1.5 text-sm">Importa Excel</button>
+			<button id="btnDl" class="hidden border border-slate-300 bg-white hover:bg-slate-50 rounded-lg px-3 py-1.5 text-sm">Scarica Excel</button>
+			<div class="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-white border border-slate-200">
+				<span id="dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+				<span id="stxt" class="text-slate-600">Non collegato</span>
+			</div>
+			<form method="post" action="{% url 'logout' %}" class="flex items-center gap-2 text-sm">
+				{% csrf_token %}
+				<span class="text-slate-500">{{ user.get_username }}</span>
+				<button type="submit" class="border border-slate-300 bg-white hover:bg-slate-50 rounded-lg px-3 py-1.5">Esci</button>
+			</form>
+		</div>
+	</header>
+
+	<section id="setup" class="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-xl mx-auto">
+		<div id="stepStart">
+			<h2 id="startTitle" class="text-lg font-semibold mb-2">Collega la cartella dei dati</h2>
+			<p id="startText" class="text-sm text-slate-500 mb-6">Scegli la cartella dove tenere il file gestionale.xlsx. Ogni modifica viene salvata subito lì, e a ogni apertura viene fatta una copia nella sottocartella backup.</p>
+			<div class="flex flex-col gap-3 items-center">
+				<button id="reopen" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-5 py-2.5 text-sm font-medium">Riapri la cartella «<span id="reopenName"></span>»</button>
+				<button id="pick" class="border border-slate-300 bg-white hover:bg-slate-50 rounded-lg px-5 py-2.5 text-sm font-medium">Scegli cartella</button>
+				<div class="flex flex-wrap justify-center gap-4 mt-2">
+					<button id="memMode" class="text-sm text-slate-500 hover:text-slate-800 underline">Carica un file Excel senza cartella</button>
+					<button id="memNew" class="text-sm text-slate-500 hover:text-slate-800 underline">Inizia da zero senza cartella</button>
+				</div>
+			</div>
+		</div>
+		<div id="stepMissing" class="hidden">
+			<h2 class="text-lg font-semibold mb-2">Database non trovato</h2>
+			<p class="text-sm text-slate-500 mb-6">Nella cartella «<span id="missName" class="font-medium text-slate-700"></span>» non c'è il file gestionale.xlsx. Puoi caricare un file Excel che hai già (verrà salvato in questa cartella come gestionale.xlsx) oppure iniziare da zero.</p>
+			<div class="flex flex-col gap-3 items-center">
+				<button id="btnUpl" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-5 py-2.5 text-sm font-medium">Carica file Excel</button>
+				<button id="btnNew" class="border border-slate-300 bg-white hover:bg-slate-50 rounded-lg px-5 py-2.5 text-sm font-medium">Inizia da zero</button>
+				<button id="btnBack" class="text-sm text-slate-500 hover:text-slate-800 underline mt-2">Scegli un'altra cartella</button>
+			</div>
+		</div>
+		<p id="setupMsg" class="text-sm text-red-600 mt-4"></p>
+	</section>
+	<input type="file" id="upl" accept=".xlsx,.xls,.ods" class="hidden">
+
+	<main id="app" class="hidden space-y-6">
+		<section class="bg-white border border-slate-200 rounded-2xl p-5">
+			<h2 class="text-sm font-semibold text-slate-500 mb-3">Nuovo acquisto</h2>
+			<div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+				<label class="md:col-span-3 text-sm text-slate-600">Data e ora
+					<input id="dt" type="datetime-local" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+				</label>
+				<label class="md:col-span-5 text-sm text-slate-600">Descrizione
+					<input id="ds" type="text" placeholder="Lampada vintage in ottone" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+				</label>
+				<label class="md:col-span-2 text-sm text-slate-600">Prezzo (€)
+					<input id="pr" type="number" min="0" step="0.01" placeholder="25,00" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+				</label>
+				<button id="add" class="md:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium h-[38px]">Aggiungi</button>
+			</div>
+			<p id="err" class="text-sm text-red-600 mt-2 min-h-[1.25rem]"></p>
+		</section>
+
+		<section class="flex flex-wrap items-center gap-3">
+			<select id="per" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"></select>
+			<select id="flt" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+				<option value="all">Tutti</option><option value="stock">In magazzino</option><option value="sold">Venduti</option>
+			</select>
+			<input id="q" type="text" placeholder="Cerca" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm w-48">
+		</section>
+
+		<section id="mets" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"></section>
+
+		<section class="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="text-left text-slate-500 border-b border-slate-200">
+					<tr>
+						<th class="px-4 py-3 font-medium">Acquisto</th>
+						<th class="px-4 py-3 font-medium">Descrizione</th>
+						<th class="px-4 py-3 font-medium text-right">Costo</th>
+						<th class="px-4 py-3 font-medium">Vendita</th>
+						<th class="px-4 py-3 font-medium text-right">Utile</th>
+						<th class="px-4 py-3"></th>
+					</tr>
+				</thead>
+				<tbody id="rows"></tbody>
+			</table>
+		</section>
+	</main>
+</div>
+
+<script>
+const DB_NAME = 'gestionale.xlsx', BK_DIR = 'backup', MAX_BK = 30;
+const FMT_D = 'dd/mm/yyyy hh:mm', FMT_E = '#,##0.00 €';
+let mode = null, dir = null, memName = '', items = [], selling = null, pending = false;
+let lastMod = 0, retryT = null, saving = false, again = false, uploadPurpose = null;
+
+const $ = id => document.getElementById(id);
+const r2 = n => Math.round(n * 100) / 100;
+const pad = n => String(n).padStart(2, '0');
+const eur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n || 0);
+const fmt = d => d ? d.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const clock = () => new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const ym = d => d ? d.getFullYear() + '-' + pad(d.getMonth() + 1) : '';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const esc = s => String(s).replace(/[&<>"]/g, c => '&' + ({ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot' }[c]) + ';');
+const toInput = d => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+const fromInput = s => { const [a, b] = s.split('T'), [y, m, d] = a.split('-'), [h, mi] = b.split(':'); return new Date(+y, m - 1, +d, +h, +mi); };
+
+const ser = d => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) / 864e5 + 25569;
+function toDate(v) {
+	if (v == null || v === '') return null;
+	if (typeof v === 'number') { const u = new Date(Math.round((v - 25569) * 864e5)); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate(), u.getUTCHours(), u.getUTCMinutes()); }
+	const m = String(v).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);
+	if (m) return new Date(+m[3], m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+	const d = new Date(v); return isNaN(d) ? null : d;
+}
+function num(v) {
+	if (typeof v === 'number') return r2(v);
+	let s = String(v == null ? '' : v).replace(/[€\s]/g, '');
+	if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+	const n = parseFloat(s); return isNaN(n) ? 0 : r2(n);
+}
+
+function idb() { return new Promise((res, rej) => { const r = indexedDB.open('gestionale', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+async function kvGet(k) { const db = await idb(); return new Promise(res => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }); }
+async function kvSet(k, v) { const db = await idb(); return new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; }); }
+
+function setStatus(kind, text) {
+	$('dot').className = 'w-2.5 h-2.5 rounded-full ' + ({ ok: 'bg-emerald-500', err: 'bg-red-500', busy: 'bg-amber-400' }[kind] || 'bg-slate-300');
+	$('stxt').textContent = text;
+}
+function showStep(id) { ['stepStart', 'stepMissing'].forEach(s => $(s).classList.toggle('hidden', s !== id)); $('setupMsg').textContent = ''; }
+
+function parseWb(buf) {
+	const wb = XLSX.read(buf, { type: 'array' });
+	const ws = wb.Sheets['Registro'] || wb.Sheets[wb.SheetNames[0]];
+	if (!ws) return { list: [], fixed: false };
+	const raw = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
+	if (raw.length) { const k = Object.keys(raw[0]); if (!k.includes('Descrizione') || !k.includes('Prezzo acquisto')) throw new Error('mancano le colonne "Descrizione" e "Prezzo acquisto"'); }
+	let fixed = false;
+	const list = raw.filter(r => r['Descrizione'] != null || r['Prezzo acquisto'] != null).map(r => {
+		let id = r['ID']; if (!id) { id = uid(); fixed = true; }
+		const sold = r['Prezzo vendita'] != null ? String(r['Prezzo vendita']).trim() !== '' : false;
+		const dt = toDate(r['Data acquisto']) || new Date();
+		return { id: String(id), dt, ds: String(r['Descrizione'] == null ? '' : r['Descrizione']), pp: num(r['Prezzo acquisto']),
+						 sp: sold ? num(r['Prezzo vendita']) : null, sdt: sold ? (toDate(r['Data vendita']) || dt) : null };
+	});
+	return { list, fixed };
+}
+
+async function init() {
+	const fsOk = 'showDirectoryPicker' in window;
+	if (!fsOk) {
+		$('startTitle').textContent = 'Carica il tuo file Excel';
+		$('startText').textContent = 'Questo browser non permette di salvare direttamente su un file. Puoi comunque caricare il tuo gestionale.xlsx, lavorarci e scaricarlo aggiornato con "Scarica Excel". Per il salvataggio automatico apri questa pagina con Chrome o Edge su computer.';
+		$('pick').classList.add('hidden');
+		$('memMode').className = 'bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-5 py-2.5 text-sm font-medium';
+	} else {
+		const h = await kvGet('dir').catch(() => null);
+		if (h) { $('reopenName').textContent = h.name; $('reopen').classList.remove('hidden'); $('reopen').onclick = () => openDir(h); }
+	}
+	$('pick').onclick = async () => { try { openDir(await window.showDirectoryPicker({ mode: 'readwrite' })); } catch (e) { } };
+	$('memMode').onclick = () => { uploadPurpose = 'mem'; $('upl').click(); };
+	$('memNew').onclick = () => { mode = 'mem'; memName = ''; items = []; enterApp(); setStatus('ok', 'Database nuovo'); };
+	$('btnUpl').onclick = () => { uploadPurpose = 'missing'; $('upl').click(); };
+	$('btnNew').onclick = async () => { items = []; lastMod = 0; enterApp(); await persist(); };
+	$('btnBack').onclick = () => showStep('stepStart');
+	$('btnImp').onclick = () => { uploadPurpose = 'import'; $('upl').click(); };
+	$('btnDl').onclick = download;
+}
+
+async function openDir(h) {
+	try {
+		let p = await h.queryPermission({ mode: 'readwrite' });
+		if (p !== 'granted') p = await h.requestPermission({ mode: 'readwrite' });
+		if (p !== 'granted') { $('setupMsg').textContent = 'Senza il permesso di modifica non posso salvare i dati.'; return; }
+		dir = h; mode = 'fs'; await kvSet('dir', h).catch(() => {});
+		let fh = null;
+		try { fh = await dir.getFileHandle(DB_NAME); } catch (e) { }
+		if (!fh) { $('missName').textContent = h.name; showStep('stepMissing'); return; }
+		await loadFromHandle(fh, true);
+		enterApp();
+	} catch (e) {
+		$('setupMsg').textContent = 'La cartella non è raggiungibile (forse è stata spostata o rinominata). Sceglila di nuovo.';
+	}
+}
+
+async function loadFromHandle(fh, doBackup) {
+	const f = await fh.getFile(); lastMod = f.lastModified;
+	const buf = await f.arrayBuffer();
+	if (doBackup) if (f.size > 0) await backup(buf);
+	const r = parseWb(buf); items = r.list;
+	setStatus('ok', 'File aperto');
+	if (r.fixed) await persist();
+}
+
+$('upl').onchange = async e => {
+	const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+	try {
+		const r = parseWb(await f.arrayBuffer());
+		if (uploadPurpose === 'import' && items.length) {
+			if (!confirm('Sostituire i ' + items.length + ' oggetti attuali con i ' + r.list.length + ' del file «' + f.name + '»?')) return;
+		}
+		items = r.list; selling = null;
+		if (uploadPurpose === 'mem') { mode = 'mem'; memName = f.name; enterApp(); setStatus('ok', 'File caricato'); return; }
+		if (uploadPurpose === 'missing') { lastMod = 0; enterApp(); await persist(); return; }
+		changed();
+	} catch (err) {
+		const t = 'Non riesco a leggere il file: ' + err.message;
+		if ($('app').classList.contains('hidden')) $('setupMsg').textContent = t; else alert(t);
+	}
+};
+
+function enterApp() {
+	$('setup').classList.add('hidden'); $('app').classList.remove('hidden');
+	$('btnImp').classList.remove('hidden'); $('btnDl').classList.remove('hidden');
+	$('where').textContent = mode === 'fs'
+		? 'Database: ' + dir.name + ' / ' + DB_NAME
+		: 'Lavori senza cartella' + (memName ? ' su «' + memName + '»' : '') + ': ricordati di scaricare il file';
+	$('dt').value = toInput(new Date());
+	refreshUI();
+}
+
+async function backup(buf) {
+	try {
+		const bd = await dir.getDirectoryHandle(BK_DIR, { create: true });
+		const d = new Date();
+		const name = 'gestionale_' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()) + '.xlsx';
+		const w = await (await bd.getFileHandle(name, { create: true })).createWritable();
+		await w.write(buf); await w.close();
+		const names = [];
+		for await (const [n, h] of bd.entries()) if (h.kind === 'file') if (n.startsWith('gestionale_')) names.push(n);
+		names.sort();
+		while (names.length > MAX_BK) await bd.removeEntry(names.shift());
+	} catch (e) { console.warn('Backup non riuscito', e); }
+}
+
+function sheet(aoa, fmts, cols) {
+	const ws = XLSX.utils.aoa_to_sheet(aoa);
+	for (let r = 1; r < aoa.length; r++) for (const c in fmts) {
+		const cell = ws[XLSX.utils.encode_cell({ r, c: +c })];
+		if (cell) if (cell.t === 'n') cell.z = fmts[c];
+	}
+	ws['!cols'] = cols;
+	return ws;
+}
+
+function buildWb() {
+	const wb = XLSX.utils.book_new();
+	const sorted = items.slice().sort((a, b) => a.dt - b.dt);
+	const reg = [['ID', 'Data acquisto', 'Descrizione', 'Prezzo acquisto', 'Stato', 'Data vendita', 'Prezzo vendita', 'Utile']];
+	sorted.forEach(i => reg.push([i.id, ser(i.dt), i.ds, i.pp, i.sp != null ? 'Venduto' : 'In magazzino',
+		i.sp != null ? ser(i.sdt) : null, i.sp, i.sp != null ? r2(i.sp - i.pp) : null]));
+	XLSX.utils.book_append_sheet(wb, sheet(reg, { 1: FMT_D, 3: FMT_E, 5: FMT_D, 6: FMT_E, 7: FMT_E },
+		[{ wch: 10, hidden: true }, { wch: 17 }, { wch: 40 }, { wch: 15 }, { wch: 13 }, { wch: 17 }, { wch: 15 }, { wch: 12 }]), 'Registro');
+
+	const now = new Date();
+	const mag = [['Data acquisto', 'Descrizione', 'Prezzo acquisto', 'Giorni in magazzino']];
+	sorted.filter(i => i.sp == null).forEach(i => mag.push([ser(i.dt), i.ds, i.pp, Math.floor((now - i.dt) / 864e5)]));
+	XLSX.utils.book_append_sheet(wb, sheet(mag, { 0: FMT_D, 2: FMT_E }, [{ wch: 17 }, { wch: 40 }, { wch: 15 }, { wch: 20 }]), 'Magazzino');
+
+	const by = {};
+	const slot = k => by[k] = by[k] || { b: 0, s: 0, n: 0, r: 0, c: 0 };
+	items.forEach(i => { const a = slot(ym(i.dt)); a.b++; a.s += i.pp; if (i.sp != null) { const v = slot(ym(i.sdt)); v.n++; v.r += i.sp; v.c += i.pp; } });
+	const rie = [['Mese', 'Oggetti acquistati', 'Speso', 'Oggetti venduti', 'Incassato', 'Costo del venduto', 'Utile', 'Margine %']];
+	const tot = { b: 0, s: 0, n: 0, r: 0, c: 0 };
+	Object.keys(by).sort().forEach(k => { const x = by[k]; for (const f in tot) tot[f] += x[f];
+		rie.push([k, x.b, r2(x.s), x.n, r2(x.r), r2(x.c), r2(x.r - x.c), x.r ? r2((x.r - x.c) / x.r * 100) : 0]); });
+	rie.push(['Totale', tot.b, r2(tot.s), tot.n, r2(tot.r), r2(tot.c), r2(tot.r - tot.c), tot.r ? r2((tot.r - tot.c) / tot.r * 100) : 0]);
+	XLSX.utils.book_append_sheet(wb, sheet(rie, { 2: FMT_E, 4: FMT_E, 5: FMT_E, 6: FMT_E, 7: '0.0' },
+		[{ wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 11 }]), 'Riepilogo mensile');
+	return wb;
+}
+
+async function save() {
+	setStatus('busy', 'Salvataggio…');
+	try {
+		const fh = await dir.getFileHandle(DB_NAME, { create: true });
+		const cur = await fh.getFile();
+		const external = lastMod ? (cur.size > 0 ? cur.lastModified !== lastMod : false) : false;
+		if (external) {
+			if (!confirm('Il file gestionale.xlsx è stato modificato fuori dal gestionale (per esempio in Excel).\n\nOK = sovrascrivilo con i dati che vedi qui\nAnnulla = ricarica i dati dal file')) {
+				await loadFromHandle(fh, false); pending = false; refreshUI(); setStatus('ok', 'Ricaricato dal file'); return;
+			}
+		}
+		const out = XLSX.write(buildWb(), { bookType: 'xlsx', type: 'array' });
+		const w = await fh.createWritable(); await w.write(out); await w.close();
+		lastMod = (await fh.getFile()).lastModified;
+		pending = false; clearTimeout(retryT);
+		setStatus('ok', 'Salvato alle ' + clock());
+	} catch (e) {
+		pending = true;
+		setStatus('err', 'Non salvato: se il file è aperto in Excel chiudilo. Riprovo tra 5 secondi');
+		clearTimeout(retryT); retryT = setTimeout(persist, 5000);
+	}
+}
+
+async function persist() {
+	if (mode === 'mem') { pending = true; setStatus('busy', 'Modifiche da scaricare con "Scarica Excel"'); return; }
+	if (saving) { again = true; return; }
+	saving = true; await save(); saving = false;
+	if (again) { again = false; persist(); }
+}
+
+function download() {
+	try {
+		const d = new Date();
+		const stamp = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + '-' + pad(d.getMinutes());
+		XLSX.writeFile(buildWb(), 'gestionale_' + stamp + '.xlsx');
+		if (mode === 'mem') { pending = false; setStatus('ok', 'Scaricato alle ' + clock()); }
+	} catch (e) { alert('Download non riuscito: ' + e.message); }
+}
+
+function months() {
+	const s = new Set(); items.forEach(i => { s.add(ym(i.dt)); if (i.sdt) s.add(ym(i.sdt)); });
+	const cur = $('per').value || 'all';
+	$('per').innerHTML = '<option value="all">Sempre</option>' + [...s].sort().reverse().map(m => {
+		const [y, mm] = m.split('-'); const l = new Date(+y, mm - 1).toLocaleString('it-IT', { month: 'long', year: 'numeric' });
+		return '<option value="' + m + '">' + l.charAt(0).toUpperCase() + l.slice(1) + '</option>'; }).join('');
+	$('per').value = [...$('per').options].some(o => o.value === cur) ? cur : 'all';
+}
+
+function metric(label, value, color) {
+	return '<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500">' + label + '</p><p class="text-xl font-semibold mt-1 ' + (color || 'text-slate-800') + '">' + value + '</p></div>';
+}
+
+function render() {
+	const p = $('per').value, f = $('flt').value, q = $('q').value.trim().toLowerCase();
+	const inP = d => p === 'all' ? true : (d ? ym(d) === p : false);
+	const bought = items.filter(i => inP(i.dt));
+	const sold = items.filter(i => i.sp != null ? inP(i.sdt) : false);
+	const stock = items.filter(i => i.sp == null);
+	const spent = bought.reduce((a, i) => a + i.pp, 0), rev = sold.reduce((a, i) => a + i.sp, 0), cost = sold.reduce((a, i) => a + i.pp, 0);
+	const prof = rev - cost, mg = rev ? prof / rev * 100 : 0, sv = stock.reduce((a, i) => a + i.pp, 0);
+	$('mets').innerHTML =
+		metric('Speso in acquisti', eur(spent)) + metric('Incassato', eur(rev)) +
+		metric('Utile netto', eur(prof), prof > 0 ? 'text-emerald-600' : prof < 0 ? 'text-red-600' : '') +
+		metric('Margine sulle vendite', mg.toFixed(1).replace('.', ',') + '%') + metric('Oggetti venduti', sold.length) +
+		metric('In magazzino', stock.length + ' <span class="text-sm font-normal text-slate-500">· ' + eur(sv) + '</span>');
+
+	const rows = items.filter(i => inP(i.dt) || inP(i.sdt))
+		.filter(i => f === 'all' ? true : (f === 'sold' ? i.sp != null : i.sp == null))
+		.filter(i => !q || i.ds.toLowerCase().includes(q))
+		.sort((a, b) => b.dt - a.dt);
+
+	if (!rows.length) { $('rows').innerHTML = '<tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">Nessun oggetto da mostrare. Registra il primo acquisto qui sopra.</td></tr>'; return; }
+
+	const inp = 'rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500';
+	const ico = 'text-slate-400 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-slate-100';
+	$('rows').innerHTML = rows.map(i => {
+		const isS = i.sp != null, u = isS ? r2(i.sp - i.pp) : null;
+		let v;
+		if (selling === i.id) {
+			v = '<div class="flex flex-wrap items-center gap-2">' +
+				'<input id="sellDt" type="datetime-local" value="' + toInput(new Date()) + '" class="' + inp + '">' +
+				'<input id="sellPr" type="number" min="0" step="0.01" placeholder="Prezzo €" class="' + inp + ' w-28" onkeydown="if(event.key===\'Enter\')doSell(\'' + i.id + '\')">' +
+				'<button onclick="doSell(\'' + i.id + '\')" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-md px-3 py-1 text-sm">Conferma</button>' +
+				'<button onclick="selling=null;render()" class="text-slate-500 hover:text-slate-800 text-sm px-2">Annulla</button>' +
+				'<span id="sellErr" class="text-xs text-red-600 w-full"></span></div>';
+		} else if (isS) {
+			v = '<span class="inline-block rounded-md bg-emerald-50 text-emerald-700 px-2 py-0.5 font-medium">' + eur(i.sp) + '</span><span class="text-xs text-slate-400 ml-2">' + fmt(i.sdt) + '</span>';
+		} else {
+			v = '<button onclick="startSell(\'' + i.id + '\')" class="border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1 text-sm">Vendi</button>';
+		}
+		return '<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">' +
+			'<td class="px-4 py-3 text-slate-500 whitespace-nowrap">' + fmt(i.dt) + '</td>' +
+			'<td class="px-4 py-3">' + esc(i.ds) + '</td>' +
+			'<td class="px-4 py-3 text-right whitespace-nowrap">' + eur(i.pp) + '</td>' +
+			'<td class="px-4 py-3">' + v + '</td>' +
+			'<td class="px-4 py-3 text-right whitespace-nowrap ' + (u == null ? 'text-slate-300' : u >= 0 ? 'text-emerald-600' : 'text-red-600') + '">' + (u == null ? '—' : eur(u)) + '</td>' +
+			'<td class="px-4 py-3 text-right whitespace-nowrap">' +
+				(isS ? '<button title="Annulla vendita" onclick="unsell(\'' + i.id + '\')" class="' + ico + '">↩</button>' : '') +
+				'<button title="Elimina" onclick="del(\'' + i.id + '\')" class="' + ico + '">✕</button>' +
+			'</td></tr>';
+	}).join('');
+}
+
+function refreshUI() { months(); render(); }
+function changed() { refreshUI(); persist(); }
+
+$('add').onclick = () => {
+	const dt = $('dt').value, ds = $('ds').value.trim(), pp = parseFloat($('pr').value);
+	if (!dt) return $('err').textContent = 'Inserisci data e ora';
+	if (!ds) return $('err').textContent = 'Inserisci una descrizione';
+	if (isNaN(pp) || pp < 0) return $('err').textContent = 'Inserisci un prezzo valido';
+	items.push({ id: uid(), dt: fromInput(dt), ds, pp: r2(pp), sp: null, sdt: null });
+	$('ds').value = ''; $('pr').value = ''; $('dt').value = toInput(new Date()); $('ds').focus();
+	changed();
+};
+['dt', 'ds', 'pr'].forEach(id => {
+	$(id).addEventListener('input', () => $('err').textContent = '');
+	$(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('add').click(); });
+});
+
+window.startSell = id => { selling = id; render(); setTimeout(() => { const el = $('sellPr'); if (el) el.focus(); }); };
+window.doSell = id => {
+	const sp = parseFloat($('sellPr').value), sdt = $('sellDt').value;
+	if (isNaN(sp) || sp < 0) return $('sellErr').textContent = 'Inserisci un prezzo valido';
+	if (!sdt) return $('sellErr').textContent = 'Inserisci la data di vendita';
+	const i = items.find(x => x.id === id); i.sp = r2(sp); i.sdt = fromInput(sdt); selling = null;
+	changed();
+};
+window.unsell = id => { if (!confirm('Annullare la vendita? L\'oggetto torna in magazzino.')) return; const i = items.find(x => x.id === id); i.sp = null; i.sdt = null; changed(); };
+window.del = id => { if (!confirm('Eliminare definitivamente questo oggetto?')) return; items = items.filter(x => x.id !== id); changed(); };
+
+['per', 'flt'].forEach(id => $(id).addEventListener('change', render));
+$('q').addEventListener('input', render);
+window.addEventListener('beforeunload', e => { if (pending || saving) { e.preventDefault(); e.returnValue = ''; } });
+
+init();
+</script>
+</body>
+</html>

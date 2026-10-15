@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.sqlite3
+.env
+staticfiles/
+*.xlsx
+backup/
+
+# Original standalone version, kept locally only
+/gestionale.html
